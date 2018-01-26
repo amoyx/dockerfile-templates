@@ -57,6 +57,7 @@ RUN  cd redis-session-manager \
      && cp target/redis-session-manager-with-dependencies*.jar $CATALINA_HOME/lib/ \
      && rm -rf ./*
 
+COPY localtime /etc/localtime
 COPY entrypoint.sh /entrypoint.sh
 RUN  chmod +x /entrypoint.sh
 
