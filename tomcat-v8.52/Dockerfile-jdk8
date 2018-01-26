@@ -1,0 +1,57 @@
+FROM java:8u111-jdk-alpine
+
+ENV CATALINA_HOME /usr/local/tomcat
+ENV MAVEN_HOME /usr/local/maven
+ENV PATH $CATALINA_HOME/bin:$MAVEN_HOME/bin:$PATH
+
+ENV TOMCAT_TGZ_URL http://mirrors.hust.edu.cn/apache/tomcat/tomcat-8/v8.5.27/bin/apache-tomcat-8.5.27.tar.gz
+ENV MAVEN_TGZ_URL http://mirrors.hust.edu.cn/apache/maven/maven-3/3.5.2/binaries/apache-maven-3.5.2-bin.tar.gz
+
+RUN  apk --update add wget tar
+
+RUN set -x \
+    && cd /tmp \
+    && wget -O tomcat.tar.gz $TOMCAT_TGZ_URL \
+    && tar -xvf tomcat.tar.gz \
+    && mv apache-tomcat* $CATALINA_HOME \
+    && rm -rf bin/*.bat \
+    && rm -rf tomcat.tar.gz*
+
+WORKDIR $CATALINA_HOME
+
+RUN set -x \
+    && cd /tmp \
+    && wget -O maven.tar.gz $MAVEN_TGZ_URL \
+    && tar -xvf maven.tar.gz \
+    && mv apache-maven* $MAVEN_HOME \
+    && rm -rf maven.tar.gz*
+
+RUN echo 'Asia/Shanghai' > /etc/timezone
+
+RUN echo '#!/bin/sh' > $CATALINA_HOME/bin/setenv.sh \
+    && echo 'JAVA_OPTS="$JAVA_OPTS -Xms1024m -Xmx2048m -XX:MaxPermSize=512m -server"'  >> $CATALINA_HOME/bin/setenv.sh \
+    && echo 'CATALINA_OPTS="$CATALINA_OPTS -DserverType=rdtest -DserverName=first"' >> $CATALINA_HOME/bin/setenv.sh
+
+RUN set -x \
+    &&  /bin/rm -rf webapps/docs webapps/examples webapps/ROOT/* webapps/host-manager  \
+    &&  echo 'Hello World' > webapps/ROOT/index.html \
+    &&  /bin/sed -i "s/redirectPort=\"8443\"/redirectPort=\"8443\" URIEncoding=\"UTF-8\"  \
+        maxThreads=\"500\"  \
+        acceptCount=\"500\"  \
+        maxConnections=\"1024\"   \
+        enableLookups=\"false\" /g"  $CATALINA_HOME/conf/server.xml
+
+COPY redis-session-manager redis-session-manager
+RUN  cd redis-session-manager \
+     && mvn clean package  \
+     && cp target/redis-session-manager-with-dependencies*.jar $CATALINA_HOME/lib/ \
+     && rm -rf ./* \
+     && rm -rf /root/.m2
+
+COPY localtime /etc/localtime
+COPY entrypoint.sh /entrypoint.sh
+RUN  chmod +x /entrypoint.sh
+
+EXPOSE 8080
+
+CMD ["sh", "/entrypoint.sh"]
