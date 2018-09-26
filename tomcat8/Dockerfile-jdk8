@@ -1,0 +1,54 @@
+FROM ubuntu:latest
+
+ENV CATALINA_HOME=/opt \
+    JAVA_HOME=/usr/local/java \
+	TZ=Asia/Shanghai
+
+ENV JRE_HOME=$JAVA_HOME/jre \
+    CLASSPATH=.:$JAVA_HOME/lib:/usr/local/java/jre/lib \
+    PATH=$JAVA_HOME/bin:$PATH \
+	JAVA_TAR_URL=http://download.oracle.com/otn-pub/java/jdk/8u181-b13/96a7b8442fe848ef90c96a2fad6ed6d1/jdk-8u181-linux-x64.tar.gz \
+	LC_ALL=zh_CN.UTF-8 \
+	LANG=zh_CN.UTF-8
+	
+RUN /bin/mkdir -p $CATALINA_HOME && /bin/mkdir -p $JAVA_HOME
+
+WORKDIR $CATALINA_HOME
+
+COPY localtime \
+     entrypoint.sh \
+	 keys \
+     bashrc \
+	 simsun.ttf \
+     $CATALINA_HOME/
+
+RUN apt-get update \
+	&& apt-get install language-pack-zh-hans -y \
+    && echo 'LANG="zh_CN.UTF-8"' >> /etc/default/locale \
+    && echo 'LANGUAGE="zh_CN:zh:en_US:en"' >> /etc/default/locale \
+    && locale-gen zh_CN.UTF-8 \
+	&& mkdir -p /usr/share/zoneinfo/Asia \
+    && mv $CATALINA_HOME/localtime /usr/share/zoneinfo/$TZ \
+	&& rm -rf /usr/share/zoneinfo/Etc \
+	&& ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+	&& echo $TZ > /etc/timezone \
+	&& mkdir $CATALINA_HOME/keys \
+    && mv $CATALINA_HOME/*.keystore $CATALINA_HOME/keys/ \
+    && apt-get install fontconfig -y\
+    && mv $CATALINA_HOME/simsun.ttf /usr/share/fonts/truetype/dejavu/simsun.ttf \
+	&& chmod 777 /usr/share/fonts/truetype/dejavu/simsun.ttf \
+	&& fc-cache \
+    && mv $CATALINA_HOME/bashrc /root/.bashrc \
+    && cd $JAVA_HOME \
+    && apt-get install curl -y \
+	&& curl -L "$JAVA_TAR_URL" -H "Cookie: oraclelicense=accept-securebackup-cookie" -H "Connection: keep-alive" -o java.tar.gz \
+    && tar -xzvf java.tar.gz --strip-components=1 \
+    && rm -rf java.tar.gz \
+    && mkdir -p $CATALINA_HOME/logs \
+    && chmod 777 $CATALINA_HOME/logs \
+	&& mv $CATALINA_HOME/entrypoint.sh /entrypoint.sh \
+    && chmod +x /entrypoint.sh
+
+EXPOSE 8080
+
+CMD ["bash", "/entrypoint.sh"]
