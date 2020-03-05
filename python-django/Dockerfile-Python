@@ -1,0 +1,16 @@
+FROM centos:7.2.1511
+RUN mkdir -p /opt
+WORKDIR /opt
+RUN yum install gcc wget openssl-devel bizp2-devel expat-devel gdbm-devel readline-devel sqlite-devel libffi-devel -y
+RUN cd /tmp \
+    && wget -O python.tar.xz https://www.python.org/ftp/python/3.6.5/Python-3.6.5.tar.xz \
+	&& xz -d python.tar.xz \
+	&& tar -xvf python.tar \
+	&& mkdir -p /usr/local/python
+RUN rpm --rebuilddb \
+    && yum install automake autoconf libtool make -y \
+    && cd /tmp/Python-3.6.5 \
+	&& ./configure --prefix=/usr/local/python \
+	&& make \
+	&& make install \
+	&& rm -rf python.tar.xz python
